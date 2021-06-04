@@ -121,6 +121,7 @@ for i,val in enumerate(submit_list):
 # print(json.dumps(stacked_dict, indent=4))
 
 for key, crops_list in stacked_dict.items():
+    print(key)
     for i, crop_info in enumerate(crops_list):
         # print(crop_info)
         if crop_info["category_id"] in [1, 2]:  # no_preson: 1guard, 2safebelt
@@ -128,9 +129,10 @@ for key, crops_list in stacked_dict.items():
             is_overlap,overlaps_list = check_overlap(crop_info,crops_list)
             if is_overlap:
                 origin = stacked_dict[key][i]['bbox']
-                # select max IOU
-                stacked_dict[key][i]['bbox'] = overlaps_list[0]['bbox']
 
+                # stacked_dict[key][i]['bbox'] = overlaps_list[0]['bbox']
+
+                # select max IOU
                 crop_dict1 = stacked_dict[key][i]
                 bb1 = [crop_dict1['bbox'][0],
                        crop_dict1['bbox'][1],
@@ -144,9 +146,9 @@ for key, crops_list in stacked_dict.items():
                            crop_dict2['bbox'][3]+crop_dict2['bbox'][1]]
 
                     iou=get_iou(bb1, bb2)
-                    print(iou)
+                    print("iou: ",iou)
 
-                # print(crop_info["category_id"],origin, stacked_dict[key][i]['bbox'])
+                print("cls_id",crop_info["category_id"], bb1, [(crop['category_id'],crop['score'], crop['bbox']) for crop in overlaps_list])
 
 
             if len(overlaps_list) > 1:
@@ -158,7 +160,7 @@ for key, crops_list in stacked_dict.items():
                 # print('')
                 pass
 
-
+    print()
 
 
 # rebuild best_predictions from stacked list
