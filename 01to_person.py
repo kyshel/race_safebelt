@@ -22,6 +22,7 @@ def checkIntersection(boxA, boxB):
 def check_overlap(crop_info,crops_list):
     found = 0
     overlaps_list = []
+    is_overlap = False
 
     for crop_b in crops_list:
         if crop_b['category_id'] in [0,3] : # is_person: 0ground, 3fly
@@ -34,12 +35,38 @@ def check_overlap(crop_info,crops_list):
     if found != 0:
         # print('founded:' )
         # print(overlaps_list)
-
-
-        return True, overlaps_list
+        is_overlap = True, overlaps_list
     else:
         print("warning! no overlaps found , image_id is " + str(crop_info["image_id"]) )
-        return False, overlaps_list
+
+    return is_overlap, overlaps_list
+
+
+def check_overlap_safebelt(crop_info,crops_list):
+    found = 0
+    overlaps_list = []
+    is_overlap = False
+
+    for crop_b in crops_list:
+        if crop_b['category_id'] in [2] : # is_safebelt
+            # boxA = [crop_info["bbox"],crop_info["bbox"],crop_info["bbox"],crop_info["bbox"]]
+            # boxB = [crop_b["bbox"],crop_b["bbox"],crop_b["bbox"],crop_b["bbox"]]
+            if checkIntersection(crop_info["bbox"],crop_b["bbox"]):
+                overlaps_list += [crop_b]
+                found += 1
+
+    if found != 0:
+        # print('founded:' )
+        # print(overlaps_list)
+        is_overlap = True
+    else:
+        print("warning! no overlaps found , image_id is " + str(crop_info["image_id"]) )
+
+    return is_overlap, overlaps_list
+
+
+
+
 
 
 def get_iou(box1, box2):
@@ -94,7 +121,7 @@ def get_iou(box1, box2):
     iou = intersection_area / float(bb1_area + bb2_area - intersection_area)
     assert iou >= 0.0
     assert iou <= 1.0
-    return iou
+    return iou,intersection_area
 
 
 
@@ -103,7 +130,7 @@ def get_iou(box1, box2):
 
 
 
-
+####################3 main ############################################
 
 
 
@@ -117,9 +144,38 @@ for i,val in enumerate(submit_list):
         stacked_dict[val['image_id']] += [val]
     else:
         stacked_dict[val['image_id']] = [val]
-
 # print(json.dumps(stacked_dict, indent=4))
 
+
+# remove belt overlap
+for key, crops_list in stacked_dict.items():
+    print(key)
+
+    # get belt_max_score
+    belt_max_score = 0
+    for i, crop_info in enumerate(crops_list):
+        # get belt_max_score
+        if crop_info["category_id"] in [2]:
+            is_overlap, overlaps_list = check_overlap_safebelt(crop_info, crops_list)
+            if is_overlap:
+                print("cls_id,score,box: ", crop_info["category_id"], crop_info['score'], crop_info['bbox'],
+                    [(crop['category_id'], crop['score'], crop['bbox']) for crop in overlaps_list])
+
+                belt_max_score = crop_info['score']
+                for crop_overlapped in overlaps_list:
+                    if crop_overlapped['score'] < belt_max_score:
+                        stacked_dict[key].remove(crop_overlapped)
+                    else:
+                        belt_max_score =  crop_overlapped['score']
+            else:
+                print('no safebelt overlap') # this never exec as  you much overlap yourself!
+
+    # print(belt_max_score)
+    print()
+
+exit()
+
+# to_person
 for key, crops_list in stacked_dict.items():
     print(key)
     for i, crop_info in enumerate(crops_list):
@@ -127,12 +183,18 @@ for key, crops_list in stacked_dict.items():
         if crop_info["category_id"] in [1, 2]:  # no_preson: 1guard, 2safebelt
 
             is_overlap,overlaps_list = check_overlap(crop_info,crops_list)
+
+
+
+            # select final person by IOU
             if is_overlap:
-                origin = stacked_dict[key][i]['bbox']
+                print("cls_id,score,box: ", crop_info["category_id"], crop_info['score'], crop_info['bbox'],
+                      [(crop['category_id'], crop['score'], crop['bbox']) for crop in overlaps_list])
 
-                # stacked_dict[key][i]['bbox'] = overlaps_list[0]['bbox']
+                # origin = stacked_dict[key][i]['bbox']    #stale
+                # stacked_dict[key][i]['bbox'] = overlaps_list[0]['bbox']  #stale
 
-                # select max IOU
+
                 crop_dict1 = stacked_dict[key][i]
                 bb1 = [crop_dict1['bbox'][0],
                        crop_dict1['bbox'][1],
@@ -145,10 +207,10 @@ for key, crops_list in stacked_dict.items():
                            crop_dict2['bbox'][2]+crop_dict2['bbox'][0],
                            crop_dict2['bbox'][3]+crop_dict2['bbox'][1]]
 
-                    iou=get_iou(bb1, bb2)
-                    print("iou: ",iou)
+                    iou, area =get_iou(bb1, bb2)
+                    print("iou, area: ",iou,area)
 
-                print("cls_id",crop_info["category_id"], bb1, [(crop['category_id'],crop['score'], crop['bbox']) for crop in overlaps_list])
+
 
 
             if len(overlaps_list) > 1:
