@@ -8,7 +8,7 @@ import copy
 
 
 # load coco_list
-with open('best_predictions_for02.json') as f:
+with open('best_predictions2.json') as f:
     yolo_list = json.load(f)
 
 # load fn-id map

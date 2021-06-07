@@ -306,7 +306,7 @@ for key, crops_list in stacked_dict.items():
 
 
 # make file
-with open('best_predictions_for02.json', 'w') as fp:
+with open('best_predictions2.json', 'w') as fp:
     json.dump(final_list, fp )
     # json.dump(to_submit, fp, indent=4)
 
