@@ -1,5 +1,9 @@
-# plot boxes to images, save to disk
-# todo: add seePLOT, see PIL
+# Draw labeled boxes and save
+
+
+# notice: code only run on cpu, has room to boost if on GPU
+# todo: P2:add seePLOT(),add seePIL()
+
 from  _lib1 import *
 
 import json
@@ -40,13 +44,13 @@ def see(fp,resize=(960, 540)):
     cv2.destroyAllWindows()
 
 
-def save_im(dst,im):
+def save_im(fp,im):
     # save image by dst path, use opencv
-    if os.path.exists(dst):
-        cv2.imwrite(dst, im)
-        return True
-    else:
-        raise Exception('dst not exist!', dst)
+    if not cv2.imwrite(fp, im): # return false if dir in fp not exist, should check
+        raise Exception('cv2.imwrite False, check dir in fp exists',fp)
+
+
+
 
 
 
@@ -61,10 +65,12 @@ def main():
 
     # see(fp_src)
     im = cv2.imread(fp_src)
-    save_im(fp_dst, im)
+
 
 
     # add label
+    is_saved = save_im(fp_dst, im)
+    print(is_saved)
 
     # save it to dir
 
