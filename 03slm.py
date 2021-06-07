@@ -132,7 +132,7 @@ def label_image():
         fp_txt = os.path.dirname(coco_fp) + '/' + fn_txt
         with open(fp_txt, "w") as output:
             output.write(str(no_label_list))
-        print('Warning! no_label_images  cnt: ', len(no_label_list),'txt file saved to: ',fp_txt)
+        print('Warning! no_label_images  cnt: ', len(no_label_list),', details saved to: ',fp_txt)
 
     print('Labeled images have saved to:', save_dir)
 
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     test_dir = opt.test
     save_dir = opt.save
 
-    names = {0: 'ground', 1: 'guard', 2: 'belt', 3: 'sky'}
+    names = {0: 'ground', 1: 'guard', 2: 'safebelt', 3: 'sky'}
 
     check()
     label_image()
