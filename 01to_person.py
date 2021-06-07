@@ -2,8 +2,9 @@
 import json
 
 
-# Check for boxA and boxB intersection, xywh
+
 def checkIntersection(boxA, boxB):
+    # Check for boxA and boxB intersection, xywh
     # print(boxA,boxB)
     x = max(boxA[0], boxB[0])
     y = max(boxA[1], boxB[1])
@@ -274,10 +275,6 @@ for key, crops_list in stacked_dict.items():
                 print('this object has no person overlapped, will remove this object!')
                 stacked_dict[key].remove(crop_info)
 
-
-
-
-
     print()
 
 
@@ -288,20 +285,6 @@ for key, crops_list in stacked_dict.items():
         final_list += [crop_info]
 
 
-# # xywh > xyxy
-# for i,val in enumerate(final_list):
-#     x,y,w,h = final_list[i]['bbox']
-#     x2,y2 = x+w,y+h
-#     final_list[i]['bbox'] = [x,y,x2,y2]
-#
-#
-#
-# # # remove score that <= 0.5
-# # final_list2 = [val for i, val in enumerate(final_list) if val['score'] >= 0.5]
-# # print(len(final_list),len(final_list2))
-#
-# # remove cls_id=0
-# final_list = [ ele for ele in  final_list if ele['category_id'] != 0 ]
 
 
 
@@ -312,6 +295,5 @@ with open('best_predictions2.json', 'w') as fp:
 
 
 
-# print(final_list2)
 
 
