@@ -145,7 +145,8 @@ if __name__ == '__main__':
 
     coco_fp = opt.json
     test_dir = opt.test
-    save_dir= ( 'save_'+test_dir if opt.save == '' else opt.save)
+    fn_json_no_ext = os.path.splitext(os.path.basename(coco_fp))[0]
+    save_dir= ( fn_json_no_ext + '/' if opt.save == '' else opt.save)
     names = {0: 'ground', 1: 'guard', 2: 'safebelt', 3: 'sky'}
 
     check()

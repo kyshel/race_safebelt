@@ -1,6 +1,11 @@
+# make submit.json
+
+# notice: input.json must in current dir
+
+
 
 import json
-
+import  argparse
 
 
 def checkIntersection(boxA, boxB):
@@ -65,6 +70,27 @@ def check_overlap_safebelt(crop_info,crops_list):
 
     return is_overlap, overlaps_list
 
+def check_overlap_guard(crop_info,crops_list):
+    found = 0
+    overlaps_list = []
+    is_overlap = False
+
+    for crop_b in crops_list:
+        if crop_b['category_id'] in [1] : # is_safebelt
+            # boxA = [crop_info["bbox"],crop_info["bbox"],crop_info["bbox"],crop_info["bbox"]]
+            # boxB = [crop_b["bbox"],crop_b["bbox"],crop_b["bbox"],crop_b["bbox"]]
+            if checkIntersection(crop_info["bbox"],crop_b["bbox"]):
+                overlaps_list += [crop_b]
+                found += 1
+
+    if found != 0:
+        # print('founded:' )
+        # print(overlaps_list)
+        is_overlap = True
+    else:
+        print("warning! no overlaps found , image_id is " + str(crop_info["image_id"]) )
+
+    return is_overlap, overlaps_list
 
 def check_overlap_sky(crop_info,crops_list):
     found = 0
@@ -160,9 +186,19 @@ def get_iou(box1, box2):
 ####################3 main ############################################
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--json',  type=str, default='best_predictions.json', help='json file, need cooco format')
+opt = parser.parse_args()
+fp_json = opt.json
 
-with open('best_predictions.json') as f:
+with open(fp_json) as f:
     submit_list = json.load(f)
+
+# # only keep score that >= 0.2
+cutted_list = [val for i, val in enumerate(submit_list) if val['score'] >= 0.2]
+submit_list = cutted_list
+
+
 
 # make stacked_dict
 stacked_dict = {}
@@ -174,7 +210,7 @@ for i,val in enumerate(submit_list):
 # print(json.dumps(stacked_dict, indent=4))
 
 
-# remove belt overlap, seems like iou threshold
+# remove belt overlap, max_score, seems like iou threshold
 print('[]removing belt overlapped')
 for key, crops_list in stacked_dict.items():
     # print(key)
@@ -202,7 +238,35 @@ for key, crops_list in stacked_dict.items():
     # print()
 
 
-# remove sky overlap, seems like iou threshold
+# remove guard overlap, max_score, seems like iou threshold
+print('[]removing guard overlapped')
+for key, crops_list in stacked_dict.items():
+    # print(key)
+
+    # get belt_max_score
+    belt_max_score = 0
+    for i, crop_info in enumerate(crops_list):
+        # get belt_max_score
+        if crop_info["category_id"] in [1]:
+            is_overlap, overlaps_list = check_overlap_guard(crop_info, crops_list)
+            if is_overlap:
+                # print("cls_id,score,box: ", crop_info["category_id"], crop_info['score'], crop_info['bbox'],
+                #     [(crop['category_id'], crop['score'], crop['bbox']) for crop in overlaps_list])
+
+                belt_max_score = crop_info['score']
+                for crop_overlapped in overlaps_list:
+                    if crop_overlapped['score'] < belt_max_score:
+                        stacked_dict[key].remove(crop_overlapped)
+                    else:
+                        belt_max_score =  crop_overlapped['score']
+            else:
+                print('no safebelt overlap') # this never exec as  you much overlap yourself!
+
+
+
+
+
+# remove sky overlap, max_score, seems like iou threshold
 print('[]removing sky overlapped')
 for key, crops_list in stacked_dict.items():
     # print(key)
@@ -234,7 +298,7 @@ for key, crops_list in stacked_dict.items():
 # to_person, max_area
 print('[]object to_person...')
 for key, crops_list in stacked_dict.items():
-    print(key)
+    # print(key)
     for i, crop_info in enumerate(crops_list):
         # print(crop_info)
         if crop_info["category_id"] in [1, 2]:  # no_preson: 1guard, 2safebelt
@@ -242,8 +306,8 @@ for key, crops_list in stacked_dict.items():
 
             # select final person by IOU
             if is_overlap:
-                print("cls_id,score,box: ", crop_info["category_id"], crop_info['score'], crop_info['bbox'],
-                      [(crop['category_id'], crop['score'], crop['bbox']) for crop in overlaps_list])
+                # print("cls_id,score,box: ", crop_info["category_id"], crop_info['score'], crop_info['bbox'],
+                #       [(crop['category_id'], crop['score'], crop['bbox']) for crop in overlaps_list])
 
                 crop_dict1 = stacked_dict[key][i]
 
@@ -258,7 +322,7 @@ for key, crops_list in stacked_dict.items():
 
                     iou, area =get_iou(bb1, bb2)
                     score =  crop_dict2['score']
-                    print("iou_ratio, area: ",iou,area)
+                    # print("iou_ratio, area: ",iou,area)
 
 
                     if area < max_area:   # there is optimize room here
@@ -269,31 +333,99 @@ for key, crops_list in stacked_dict.items():
 
 
                 stacked_dict[key][i]['bbox'] = max_bbox
-                print("selected max_bbox",max_bbox)
+                # print("selected max_bbox",max_bbox)
 
             else:  #  remove not overlapped
                 print('this object has no person overlapped, will remove this object!')
                 stacked_dict[key].remove(crop_info)
 
-    print()
 
 
-# rebuild best_predictions from stacked list
+
+# rebuild coco_format from stacked list
 final_list = []
 for key, crops_list in stacked_dict.items():
     for i, crop_info in enumerate(crops_list):
         final_list += [crop_info]
 
 
+import os
 
 
-
-# make file
-with open('best_predictions2.json', 'w') as fp:
+fn_json = os.path.basename(fp_json)
+fn_json_no_ext = os.path.splitext(fn_json)[0]
+fn_out = fn_json_no_ext + '_2_overlap.json'
+# make file that has orgin format
+with open(fn_out, 'w') as fp:
     json.dump(final_list, fp )
+    # json.dump(to_submit, fp, indent=4)
+print('saved, check: ', fn_out)
+
+
+
+# remove cls_id=0
+final_list = [ ele for ele in  final_list if ele['category_id'] != 0 ]
+fn_out = fn_json_no_ext + '_3_remove_ground.json'
+with open(fn_out, 'w') as fp:
+    json.dump(final_list, fp )
+    # json.dump(to_submit, fp, indent=4)
+print('saved, check: ', fn_out)
+
+
+
+
+##########################################  step 2
+import copy
+
+# load coco_list
+yolo_list = final_list
+
+# load fn-id map
+with open('link_image_fn_id.json') as f:
+    map_fn_id = json.load(f)
+
+
+
+# get nothing detected
+no_label_imgs = []
+for fn,id in map_fn_id.items():
+    if fn not in stacked_dict:
+        no_label_imgs += [fn]
+
+print('no labeld images list : ',no_label_imgs)
+
+
+# xywh > xyxy
+for i,val in enumerate(yolo_list):
+    x,y,w,h = yolo_list[i]['bbox']
+    x2,y2 = x+w,y+h
+    yolo_list[i]['bbox'] = [x,y,x2,y2]
+
+# # # only keep score that >= 0.2
+# cutted_list = [val for i, val in enumerate(yolo_list) if val['score'] >= 0.2]
+# yolo_list = cutted_list
+
+
+
+
+# image_id  fn2int
+yolo_list_debug = copy.deepcopy(yolo_list)
+for i,val in enumerate(yolo_list):
+    fn_no_ext = yolo_list[i]['image_id']
+    yolo_list[i]['image_id'] = map_fn_id[fn_no_ext] # fn_no_ext > int_id
+    yolo_list_debug[i]['image_id'] = (map_fn_id[fn_no_ext], fn_no_ext)   # denug
+
+
+
+fp_out = fn_json_no_ext + '_4_submit.json'
+
+
+
+
+with open(fp_out, 'w') as fp:
+    json.dump(yolo_list, fp )
     # json.dump(to_submit, fp, indent=4)
 
 
-
-
+print('saved, check: ', fp_out)
 
